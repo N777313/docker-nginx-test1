@@ -1,4 +1,4 @@
-name: Docker Compose Test
+name: Docker Compose Test and Publish
 
 on:
   push:
@@ -7,6 +7,14 @@ on:
   pull_request:
     branches:
       - main
+
+permissions:
+  contents: read
+  packages: write
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: n777313/docker-nginx-test1
 
 jobs:
   docker:
@@ -41,3 +49,21 @@ jobs:
       - name: Stop containers
         if: always()
         run: docker compose down
+
+      - name: Login to GHCR
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        run: |
+          echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io \
+            -u "${{ github.actor }}" \
+            --password-stdin
+
+      - name: Tag Docker image
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        run: |
+          docker tag my-app:latest \
+            ghcr.io/n777313/docker-nginx-test1:latest
+
+      - name: Push Docker image
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        run: |
+          docker push ghcr.io/n777313/docker-nginx-test1:latest
