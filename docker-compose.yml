@@ -1,20 +1,17 @@
 services:
 
   app1:
-    image: my-app:latest
-    build: .
+    image: ghcr.io/n777313/docker-nginx-test1:latest
     environment:
       INSTANCE: app1
 
   app2:
-    image: my-app:latest
-    build: .
+    image: ghcr.io/n777313/docker-nginx-test1:latest
     environment:
       INSTANCE: app2
 
   app3:
-    image: my-app:latest
-    build: .
+    image: ghcr.io/n777313/docker-nginx-test1:latest
     environment:
       INSTANCE: app3
 
