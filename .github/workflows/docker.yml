@@ -1,16 +1,13 @@
-name: Docker Compose Test and Publish
+name: Docker CI
 
 on:
   push:
     branches:
       - main
+
   pull_request:
     branches:
       - main
-
-permissions:
-  contents: read
-  packages: write
 
 env:
   REGISTRY: ghcr.io
@@ -20,50 +17,54 @@ jobs:
   docker:
     runs-on: ubuntu-latest
 
+    permissions:
+      contents: read
+      packages: write
+
     steps:
       - name: Checkout
         uses: actions/checkout@v6
 
-      - name: Build and start containers
-        run: docker compose up -d --build
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Show containers
-        run: docker compose ps
+      - name: Build Docker image
+        run: |
+          docker build -t my-app:latest .
+
+      - name: Run container
+        run: |
+          docker run -d \
+            --name my-app-container \
+            -p 8080:8080 \
+            -e INSTANCE=ci-test \
+            my-app:latest
 
       - name: Wait for application
         run: sleep 5
 
-      - name: Test Nginx
-        run: curl --fail http://localhost
-
-      - name: Test load balancing
+      - name: Test application
         run: |
-          for i in {1..6}; do
-            curl --fail http://localhost
-          done
+          curl --fail http://localhost:8080
 
       - name: Show logs
         if: always()
-        run: docker compose logs
+        run: docker logs my-app-container
 
-      - name: Stop containers
+      - name: Stop container
         if: always()
-        run: docker compose down
-
-      - name: Login to GHCR
-        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-        run: |
-          echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io \
-            -u "${{ github.actor }}" \
-            --password-stdin
+        run: docker rm -f my-app-container || true
 
       - name: Tag Docker image
-        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
         run: |
           docker tag my-app:latest \
-            ghcr.io/n777313/docker-nginx-test1:latest
+            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest
 
       - name: Push Docker image
-        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
         run: |
-          docker push ghcr.io/n777313/docker-nginx-test1:latest
+          docker push \
+            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest
